@@ -48,7 +48,7 @@ def image_text_prompt(base64_image, user_text):
         ]
       }
     ],
-    "max_tokens": 16384
+    "max_completion_tokens": 16384
   }
 
   try:
@@ -74,7 +74,7 @@ def image_text_prompt(base64_image, user_text):
 
 
 
-image_path = "../images/pierna.webp"
+image_path = "../images/informe.jpg"
 base64_image = encode_image(image_path)
 user_text= "Este paciente se queja de dolores de cabeza. ¿Te da la radiografía una pista de qué le ocurre?"
 

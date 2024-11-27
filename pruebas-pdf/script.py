@@ -80,7 +80,7 @@ def pdf_text_prompt(extracted_text, user_text):
         ]
       }
     ],
-    "max_tokens": 16384
+    "max_completion_tokens": 16384
   }
 
   try:
