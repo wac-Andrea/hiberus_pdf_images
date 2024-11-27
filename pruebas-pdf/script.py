@@ -1,11 +1,14 @@
+from openai import OpenAI
+import openai
 import pdfplumber
 import os
-import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
 
+client = OpenAI(
+  api_key=os.environ['OPENAI_API_KEY'],
+)
 def extract_text_from_pdf(pdf_path, **kwargs):
     """
     Function to extract text from a PDF and return it as plain text.
@@ -47,56 +50,45 @@ def extract_text_from_pdf(pdf_path, **kwargs):
 
     return text
 
-def pdf_text_prompt(extracted_text, user_text):
+def pdf_text_prompt(client, extracted_text, user_text):
 
   SYSTEM_PROMPT = """Eres un ávido lector que es capaz de procesar rápidamente un texto
   y entender lo que pone. Te fijas en los detalles y contexto del texto. Además, tienes conocimientos en medicina y veterinaria
   por lo que se te hace muy fácil analizar un documento (por ejemplo, un informe)
   y saber qué le pasa al paciente. Sé claro y acertado en tus diagnósticos y respuestas. """
 
-  headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {api_key}"
-  }
-
-  payload = {
-    "model": "gpt-4o",
-    "messages": [
-      {
-          "role": "system",
-          "content": SYSTEM_PROMPT
-      },
-      {
-        "role": "user",
-        "content": [
-          {
-            "type": "text",
-            "text": extracted_text
-          },
-          {
-            "type": "text",
-            "text": user_text
-          }
-        ]
-      }
-    ],
-    "max_completion_tokens": 16384
-  }
-
   try:
-      response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-      response.raise_for_status()  # Raise an error for any bad response (e.g., 4xx or 5xx)
+    response = client.chat.completions.create(
+      model = "gpt-4o",
+      messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": extracted_text
+            },
+            {
+              "type": "text",
+              "text": user_text
+            }
+          ]
+        }
+      ],
+      max_completion_tokens= 16384,
+    )
     
-      # Check if the response contains valid data
-      response_data = response.json()
-      api_message_content = response_data['choices'][0]['message']['content']
-      return api_message_content
+    return response.choices[0].message.content
 
-  except requests.exceptions.RequestException as e:
+  except openai.BadRequestError as e:
       print(f"La petición no se ha completado con éxito: {e}")
       exit(1)  
 
-  except KeyError:
+  except openai.AuthenticationError:
       print("Error: El formato no es correcto. Error en las claves (keys)")
       exit(1)  
 
@@ -105,10 +97,10 @@ def pdf_text_prompt(extracted_text, user_text):
       exit(1)  
 
 
+
 pdf_path = "../pdfs/informe.pdf"  
 extracted_text = extract_text_from_pdf(pdf_path)
-
 user_text= "¿Qué le ocurre a la paciente?"
 
-api_message_content=pdf_text_prompt(extracted_text, user_text)
+api_message_content=pdf_text_prompt(client,extracted_text, user_text)
 print(api_message_content)
