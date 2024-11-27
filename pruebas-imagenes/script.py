@@ -50,9 +50,26 @@ payload = {
       ]
     }
   ],
-  "max_tokens": 3000
+  "max_tokens": 16384
 }
 
-response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+try:
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response.raise_for_status()  # Raise an error for any bad response (e.g., 4xx or 5xx)
+  
+    # Check if the response contains valid data
+    response_data = response.json()
+    message_content = response_data['choices'][0]['message']['content']
+    print(message_content)
 
-print(response.json()['choices'][0]['message']['content'])
+except requests.exceptions.RequestException as e:
+    print(f"La petición no se ha completado con éxito: {e}")
+    exit(1)  
+
+except KeyError:
+    print("Error: El formato no es correcto. Error en las claves (keys)")
+    exit(1)  
+
+except Exception as e:
+    print(f"Ha ocurrido un error inesperado: {e}")
+    exit(1)  
