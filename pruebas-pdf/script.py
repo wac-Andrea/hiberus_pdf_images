@@ -1,5 +1,10 @@
 import pdfplumber
 import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
 
 def extract_text_from_pdf(pdf_path, **kwargs):
     """
@@ -26,10 +31,8 @@ def extract_text_from_pdf(pdf_path, **kwargs):
         "y_tolerance": 1,
     }
 
-    # Update options with any additional keyword arguments passed
     options.update(kwargs)
 
-    # Extract text from the PDF
     with pdfplumber.open(pdf_path) as pdf:
         text = ""
         for page in pdf.pages:
@@ -44,8 +47,68 @@ def extract_text_from_pdf(pdf_path, **kwargs):
 
     return text
 
-if __name__ == "__main__":
-    # Example usage
-    pdf_path = "../pdfs/noche.pdf"  # Replace with the actual PDF file path
-    extracted_text = extract_text_from_pdf(pdf_path)
-    print(extracted_text)  # Outputs the plain text directly to the console
+def pdf_text_prompt(extracted_text, user_text):
+
+  SYSTEM_PROMPT = """Eres un ávido lector que es capaz de procesar rápidamente un texto
+  y entender lo que pone. Te fijas en los detalles y contexto del texto. Además, tienes conocimientos en medicina y veterinaria
+  por lo que se te hace muy fácil analizar un documento (por ejemplo, un informe)
+  y saber qué le pasa al paciente. Sé claro y acertado en tus diagnósticos y respuestas. """
+
+  headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_key}"
+  }
+
+  payload = {
+    "model": "gpt-4o",
+    "messages": [
+      {
+          "role": "system",
+          "content": SYSTEM_PROMPT
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": extracted_text
+          },
+          {
+            "type": "text",
+            "text": user_text
+          }
+        ]
+      }
+    ],
+    "max_tokens": 16384
+  }
+
+  try:
+      response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+      response.raise_for_status()  # Raise an error for any bad response (e.g., 4xx or 5xx)
+    
+      # Check if the response contains valid data
+      response_data = response.json()
+      api_message_content = response_data['choices'][0]['message']['content']
+      return api_message_content
+
+  except requests.exceptions.RequestException as e:
+      print(f"La petición no se ha completado con éxito: {e}")
+      exit(1)  
+
+  except KeyError:
+      print("Error: El formato no es correcto. Error en las claves (keys)")
+      exit(1)  
+
+  except Exception as e:
+      print(f"Ha ocurrido un error inesperado: {e}")
+      exit(1)  
+
+
+pdf_path = "../pdfs/informe.pdf"  
+extracted_text = extract_text_from_pdf(pdf_path)
+
+user_text= "¿Qué le ocurre a la paciente?"
+
+api_message_content=pdf_text_prompt(extracted_text, user_text)
+print(api_message_content)
